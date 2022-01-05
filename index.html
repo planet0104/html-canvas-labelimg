@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head> 
+<meta charset="utf-8"> 
+<title>菜鸟教程(runoob.com)</title> 
+</head>
+<body>
+<style>
+    #labelCanvas{
+        border: solid 1px #f00;
+    }
+</style>
+<h1>html canvas labelimg</h1>
+<div>
+    <canvas id="labelCanvas" width="640" height="480"></canvas>
+</div>
+<button onclick="clearPoints();">清空</button>
+<button onclick="revoke();">撤销</button>
+<button onclick="deleteSelectPoint();">删除选中点</button>
+<script>
+    /* 计算两点间距离 */
+    function distance(p1, p2){
+        return Math.sqrt(((p2.x-p1.x)*(p2.x-p1.x)+(p2.y-p1.y)*(p2.y-p1.y)));
+    }
+
+    var canvas = document.getElementById("labelCanvas");
+    var ctx2d = canvas.getContext("2d");
+    //所有点
+    var points = [];
+    //选中的点
+    var selectedIndex = -1;
+    //是否闭合，闭合以后不可以再添加点
+    var pathClosed = false;
+    //鼠标是否按下
+    var mouseDown = false;
+    //按下时是否选中了点
+    var pressedPoint = false;
+    const MIN_SELECT_DIST = 10;
+    const LINE_COLOR = 'black';
+    const SELECT_COLOR = 'red';
+
+    /* 获取鼠标对canvas的相对位置 */
+    function getRelativeMousePoint(e){
+        return {
+            x: e.clientX - canvas.offsetLeft + window.scrollX,
+            y: e.clientY - canvas.offsetTop + window.scrollY
+        };
+    }
+
+    /* 清空 */
+    function clearPoints(){
+        points = [];
+        selectedIndex = -1;
+        pathClosed = false;
+        render();
+    }
+
+    /* 撤销，删除上一个点 */
+    function revoke(){
+        if(!pathClosed){
+            points.splice(points.length-1, 1);
+        }
+        pathClosed = false;
+        selectedIndex = -1;
+        render();
+    }
+
+    /* 删除选中的点 */
+    function deleteSelectPoint(){
+        if(points.length > 0 && selectedIndex != -1){
+            points.splice(selectedIndex, 1);
+            render();
+        }    
+    }
+
+    /* 绘制圆点 */
+    function drawPoint(p, r){
+        ctx2d.beginPath();
+        ctx2d.arc(p.x, p.y, r?r:5, 0, 2*Math.PI);
+        ctx2d.stroke();
+    }
+
+    /* 重绘 */
+    function render(){
+        //清空画布
+        ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+
+        if(points.length == 0){
+            return;
+        }
+        ctx2d.strokeStyle = LINE_COLOR;
+        //绘制线条
+        ctx2d.beginPath();
+        ctx2d.moveTo(points[0].x, points[0].y);
+        for(var i=1; i<points.length; i++){
+            ctx2d.lineTo(points[i].x, points[i].y);
+        }
+        //绘制闭合线
+        if(pathClosed){
+            ctx2d.lineTo(points[0].x, points[0].y);
+        }
+        ctx2d.stroke();
+        //绘制所有点
+        points.forEach(p => { drawPoint(p) });
+        //绘制选中的点
+        ctx2d.strokeStyle = SELECT_COLOR;
+        points.forEach((p, idx) => { 
+            if(idx == selectedIndex){
+                drawPoint(p,9);
+            }
+        });
+    }
+    
+    //鼠标点击的时候，添加顶点，绘制一次
+    canvas.onmousedown = function(e){
+        mouseDown = true;
+        selectedIndex = -1;
+
+        var p = getRelativeMousePoint(e);
+
+        //检查是否需要选中点
+        var closePoint = false;
+        var selectPoint = false;
+        
+        points.forEach((pp, idx)=> {
+            var dist = distance(pp, p);
+            if(dist < MIN_SELECT_DIST){
+                selectedIndex = idx;
+                selectPoint = true;
+                //如果选中的是最后一个点，并且点数已经大于3个，进行合并
+                if(idx == 0 && points.length > 3){
+                    closePoint = true;
+                }
+            }
+        });
+        //没有闭合的时候，点击添加点
+        if(!pathClosed){
+            if(closePoint){
+                pathClosed = true;
+            }
+            if(!selectPoint){
+                points.push(p);
+            }
+        }
+        render();
+    };
+
+    //鼠标移动的时候，移动按下位置的顶点，同时不断绘制
+    canvas.onmousemove = function(e){
+        var mp = getRelativeMousePoint(e);
+        if(mouseDown && selectedIndex != -1){
+            points[selectedIndex].x = mp.x;
+            points[selectedIndex].y = mp.y;
+        }
+        render();
+    }
+    
+    //鼠标弹起的时候，停止绘制
+    canvas.onmouseup = function(){
+        mouseDown = false;
+    };
+
+</script>
+
+</body>
+</html>
